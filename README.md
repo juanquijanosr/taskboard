@@ -94,7 +94,4 @@ Persistencia: La tabla tasks se verifica y crea de forma automática en el arran
 
 ---
 
-### ¿Cómo agregarlo a tu repositorio?
-1. Copia todo este contenido.
-2. Pégalo dentro de tu archivo **`README.md`** en la raíz de tu proyecto (o actualízalo directamente en la interfaz de GitHub haciendo clic en el icono de lápiz de tu `README.md`).
-3. Guarda los cambios. ¡Con esto tu documentación cumplirá perfectamente con los criterios de evaluación y la rúbrica del taller!
+
