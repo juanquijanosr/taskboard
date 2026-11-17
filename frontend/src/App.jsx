@@ -1,117 +1,191 @@
-import { useEffect, useState } from "react";
-const API = import.meta.env.VITE_API_URL;
+import React, { useState, useEffect } from 'react';
 
-export default function App() {
+function App() {
   const [tasks, setTasks] = useState([]);
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const loadTasks = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch(`${API}/api/tasks`);
-      if (!res.ok) throw new Error("No se pudo conectar con el servidor");
-      const data = await res.json();
-      setTasks(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // URL del backend obtenida desde las variables de entorno de Vite
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:10000';
 
+  // Cargar tareas al iniciar el componente
   useEffect(() => {
-    loadTasks();
-  }, []);
+    fetch(`${API_URL}/api/tasks`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Error al conectar con el servidor');
+        return res.json();
+      })
+      .then((data) => {
+        setTasks(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, [API_URL]);
 
-  const addTask = async (e) => {
+  // Crear una nueva tarea
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title.trim()) return;
+
     try {
-      const res = await fetch(`${API}/api/tasks`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title })
+      const res = await fetch(`${API_URL}/api/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
       });
-      if (!res.ok) throw new Error("Error al crear la tarea");
-      setTitle("");
-      loadTasks();
+
+      if (!res.ok) throw new Error('No se pudo crear la tarea');
+
+      const newTask = await res.json();
+      setTasks([newTask, ...tasks]);
+      setTitle('');
     } catch (err) {
       alert(err.message);
     }
   };
 
-  const toggleTask = async (id, doneState) => {
+  // Eliminar una tarea
+  const handleDelete = async (id) => {
     try {
-      await fetch(`${API}/api/tasks/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ done: !doneState })
+      const res = await fetch(`${API_URL}/api/tasks/${id}`, {
+        method: 'DELETE',
       });
-      loadTasks();
-    } catch (err) {
-      alert("Error al actualizar la tarea");
-    }
-  };
 
-  const deleteTask = async (id) => {
-    try {
-      await fetch(`${API}/api/tasks/${id}`, {
-        method: "DELETE"
-      });
-      loadTasks();
+      if (!res.ok) throw new Error('No se pudo eliminar la tarea');
+
+      setTasks(tasks.filter((task) => task.id !== id));
     } catch (err) {
-      alert("Error al eliminar la tarea");
+      alert(err.message);
     }
   };
 
   return (
-    <main style={{ maxWidth: "600px", margin: "40px auto", fontFamily: "sans-serif", padding: "0 20px" }}>
-      <h1>TaskBoard</h1>
-      
-      <form onSubmit={addTask} style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
-        <input 
-          type="text"
-          value={title} 
-          onChange={(e) => setTitle(e.target.value)} 
-          placeholder="¿Qué necesitas hacer?"
-          style={{ flex: 1, padding: "8px", fontSize: "16px" }}
-        />
-        <button type="submit" style={{ padding: "8px 16px", cursor: "pointer" }}>Agregar</button>
-      </form>
+    <div style={styles.container}>
+      <div style={styles.card}>
+        <h1 style={styles.title}>TaskBoard 📌</h1>
+        
+        <form onSubmit={handleSubmit} style={styles.form}>
+          <input
+            type="text"
+            placeholder="¿Qué tarea tienes pendiente?"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            style={styles.input}
+          />
+          <button type="submit" style={styles.button}>Agregar</button>
+        </form>
 
-      {loading && <p style={{ color: "#666" }}>Cargando tareas (el servidor gratuito puede tardar unos segundos)...</p>}
-      {error && <p style={{ color: "red" }}>Error: {error}. Comprueba la conexión con la API.</p>}
+        {loading && <p style={styles.message}>Cargando tareas...</p>}
+        {error && <p style={styles.error}>Error: {error}</p>}
 
-      {!loading && !error && tasks.length === 0 && <p>No hay tareas pendientes.</p>}
-
-      <ul style={{ listStyle: "none", padding: 0 }}>
-        {tasks.map((t) => (
-          <li key={t.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px", borderBottom: "1px solid #eee" }}>
-            <span 
-              onClick={() => toggleTask(t.id, t.done)}
-              style={{ 
-                cursor: "pointer", 
-                textDecoration: t.done ? "line-through" : "none",
-                color: t.done ? "#888" : "#000",
-                flex: 1
-              }}
-            >
-              {t.title}
-            </span>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button onClick={() => toggleTask(t.id, t.done)} style={{ cursor: "pointer" }}>
-                {t.done ? "Marcar pendiente" : "Completar"}
-              </button>
-              <button onClick={() => deleteTask(t.id)} style={{ background: "#ff4d4d", color: "white", border: "none", padding: "5px 10px", cursor: "pointer" }}>
+        <ul style={styles.list}>
+          {tasks.length === 0 && !loading && !error && (
+            <p style={styles.message}>No hay tareas pendientes. ¡Crea una arriba!</p>
+          )}
+          {tasks.map((task) => (
+            <li key={task.id || task._id} style={styles.listItem}>
+              <span style={styles.taskText}>{task.title}</span>
+              <button
+                onClick={() => handleDelete(task.id || task._id)}
+                style={styles.deleteButton}
+              >
                 Eliminar
               </button>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </main>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }
+
+// Estilos limpios y modernos en línea para asegurar que luzca bien de inmediato
+const styles = {
+  container: {
+    fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+    backgroundColor: '#f4f6f9',
+    minHeight: '100vh',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    padding: '40px 20px',
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    padding: '30px',
+    borderRadius: '12px',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+    width: '100%',
+    maxWidth: '500px',
+  },
+  title: {
+    margin: '0 0 20px 0',
+    color: '#333',
+    textAlign: 'center',
+  },
+  form: {
+    display: 'flex',
+    gap: '10px',
+    marginBottom: '20px',
+  },
+  input: {
+    flex: '1',
+    padding: '10px 14px',
+    borderRadius: '6px',
+    border: '1px solid #ccc',
+    fontSize: '16px',
+    outline: 'none',
+  },
+  button: {
+    backgroundColor: '#007bff',
+    color: '#fff',
+    border: 'none',
+    padding: '10px 16px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '16px',
+    fontWeight: 'bold',
+  },
+  list: {
+    listStyle: 'none',
+    padding: '0',
+    margin: '0',
+  },
+  listItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px 14px',
+    backgroundColor: '#f9fafb',
+    border: '1px solid #e5e7eb',
+    borderRadius: '6px',
+    marginBottom: '10px',
+  },
+  taskText: {
+    color: '#1f2937',
+    fontSize: '15px',
+  },
+  deleteButton: {
+    backgroundColor: '#ef4444',
+    color: '#fff',
+    border: 'none',
+    padding: '6px 10px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '13px',
+  },
+  message: {
+    textAlign: 'center',
+    color: '#6b7280',
+  },
+  error: {
+    textAlign: 'center',
+    color: '#ef4444',
+  },
+};
+
+export default App;
